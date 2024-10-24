@@ -1,14 +1,24 @@
-# Stellar Payment System v1.0.0
+# Stellar Payment System v2.0.0
 
-A simple web application for making payments on the Stellar testnet network. Live demo: https://simple-stellar-payment-system.vercel.app/
+A secure web application for making payments on the Stellar testnet network. Live demo: https://simple-stellar-payment-system.vercel.app/
 
 ## Features
 
-- Send XLM payments on Stellar testnet
-- Real-time key validation
-- Transaction status feedback
+### v2.0.0 (Current)
+- User authentication with Stellar public key
+- Real-time balance display with auto-refresh
+- Transaction history links to Stellar Explorer
+- Automatic balance updates after transactions
+- Key validation and verification
+- Improved UI with session management
+- Manual balance refresh option
 - Secure client-side key handling
-- Mobile-responsive UI
+
+### v1.0.0
+- Basic payment functionality
+- Key validation
+- Transaction status feedback
+- Testnet support
 
 ## Technology Stack
 
@@ -19,33 +29,38 @@ A simple web application for making payments on the Stellar testnet network. Liv
 
 ## Usage
 
-1. Visit the deployed application
-2. Enter the destination Stellar address
-3. Specify the amount in XLM
-4. Enter your secret key
-5. Submit the transaction
+1. Authentication:
+   - Enter your Stellar public key to log in
+   - Your balance will be displayed automatically
 
-## Transaction Verification
+2. Making Payments:
+   - Enter destination Stellar address
+   - Specify amount in XLM
+   - Enter your secret key to sign the transaction
+   - Submit payment
+   - View transaction details via provided links
 
-You can verify transactions using:
-
-1. Stellar Expert Explorer:
-   - https://stellar.expert/explorer/testnet/tx/{transaction_id}
-
-2. Horizon API:
-   - https://horizon-testnet.stellar.org/transactions/{transaction_id}
+3. Balance Management:
+   - Balance updates automatically after transactions
+   - Use refresh button for manual updates
+   - View transaction results in Stellar Explorer
 
 ## Security Notes
 
 - Secret keys are never stored
+- Public keys stored in localStorage
 - All transactions occur server-side
 - Testnet only - do not use with mainnet keys
+- Automatic key validation and verification
 
-## Version History
+## Transaction Verification
 
-### v1.0.0
-- Initial release
-- Basic payment functionality
-- Key validation
-- Transaction status feedback
-- Testnet support
+Successful transactions can be verified using:
+
+1. Stellar Expert Explorer:
+   - Click the provided link in success message
+   - View detailed transaction information
+
+2. Horizon API:
+   - Raw transaction data available
+   - Direct link provided with each transaction
