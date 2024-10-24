@@ -25,7 +25,12 @@ export default function Dashboard() {
         StellarSdk.Keypair.fromPublicKey(input);
         setValidationStatus(prev => ({...prev, destination: 'Valid destination address'}));
       } else if (type === 'secret') {
-        StellarSdk.Keypair.fromSecret(input);
+        const keypair = StellarSdk.Keypair.fromSecret(input);
+        // Verify the secret key matches the logged-in public key
+        if (keypair.publicKey() !== publicKey) {
+          setValidationStatus(prev => ({...prev, secret: 'Secret key does not match your account'}));
+          return false;
+        }
         setValidationStatus(prev => ({...prev, secret: 'Valid secret key'}));
       }
       return true;
@@ -57,13 +62,33 @@ export default function Dashboard() {
       if (response.ok) {
         setStatus(`Success! Transaction ID: ${data.transactionId}`);
         setSecret('');
+        setAmount('');
+        // Immediately refresh the balance
         refreshBalance();
+        // Set up a few more refreshes to catch any delay in the blockchain
+        const refreshTimes = [1000, 3000, 5000]; // Refresh after 1s, 3s, and 5s
+        refreshTimes.forEach(time => {
+          setTimeout(() => refreshBalance(), time);
+        });
       } else {
         setStatus(`Error: ${data.error}`);
       }
     } catch (error) {
       setStatus(`Error: ${error.message}`);
     }
+  };
+
+  const handleBalanceRefresh = () => {
+    setStatus('Refreshing balance...');
+    refreshBalance();
+    setTimeout(() => {
+      setStatus('Balance updated');
+      setTimeout(() => {
+        if (status === 'Balance updated') {
+          setStatus('');
+        }
+      }, 2000);
+    }, 1000);
   };
 
   return (
@@ -84,9 +109,17 @@ export default function Dashboard() {
             <div className="bg-gray-50 p-4 rounded-lg mb-8">
               <p className="text-sm text-gray-600">Your Public Key:</p>
               <p className="text-xs text-gray-800 break-all">{publicKey}</p>
-              <div className="mt-2">
-                <p className="text-sm text-gray-600">Balance:</p>
-                <p className="text-xl font-bold">{balance} XLM</p>
+              <div className="mt-2 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-600">Balance:</p>
+                  <p className="text-xl font-bold">{balance} XLM</p>
+                </div>
+                <button
+                  onClick={handleBalanceRefresh}
+                  className="text-sm text-indigo-600 hover:text-indigo-800"
+                >
+                  ↻ Refresh
+                </button>
               </div>
             </div>
 
