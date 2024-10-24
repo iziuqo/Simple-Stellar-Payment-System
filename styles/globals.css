@@ -1,3 +1,4 @@
+/* File: styles/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,4 +16,37 @@
 
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
+}
+
+/* Optional: Add a fade out animation for notifications */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.3s ease-out;
+}
+
+/* Optional: Add smooth transitions for hover states */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Optional: Improve button hover states */
+button:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+/* Optional: Improve form focus states */
+input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
 }
