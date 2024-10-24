@@ -17,11 +17,12 @@ export default function Dashboard() {
   const [lastPaymentTimestamp, setLastPaymentTimestamp] = useState('');
   const router = useRouter();
 
-  // If not logged in, redirect to login
-  if (typeof window !== 'undefined' && !publicKey) {
-    router.push('/');
-    return null;
-  }
+  // Check authentication
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !publicKey) {
+      router.push('/');
+    }
+  }, [publicKey, router]);
 
   // Add polling for payments
   useEffect(() => {
@@ -93,6 +94,26 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
   }, [validationStatus]);
+
+  // Show loading state while checking authentication
+  if (typeof window !== 'undefined' && !publicKey) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Redirect will be handled by the useEffect above
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force redirect even if there's an error
+      router.push('/');
+    }
+  };
 
   const validateInput = (input, type) => {
     try {
@@ -186,7 +207,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold">Stellar Payments</h1>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="text-sm text-indigo-600 hover:text-indigo-800"
                 >
                   Logout
@@ -260,34 +281,4 @@ export default function Dashboard() {
                           validateInput(e.target.value, 'secret');
                         }
                       }}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </label>
-                  {validationStatus.secret && (
-                    <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
-                      {validationStatus.secret}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Send Payment
-                </button>
-              </form>
-
-              <TransactionStatus status={status} />
-            </div>
-          </div>
-
-          {/* Transaction History */}
-          <TransactionHistory publicKey={publicKey} />
-        </div>
-      </div>
-      {lastReceivedPayment && <PaymentNotification payment={lastReceivedPayment} />}
-    </>
-  );
-}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo
