@@ -6,6 +6,7 @@ import StellarSdk from 'stellar-sdk';
 import TransactionStatus from '../components/TransactionStatus';
 import PaymentNotification from '../components/PaymentNotification';
 import TransactionHistory from '../components/TransactionHistory';
+import { Copy, LogOut, RefreshCw, Send } from 'lucide-react';
 
 export default function Dashboard() {
   const { publicKey, balance, logout, refreshBalance, lastReceivedPayment } = useAuth();
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [status, setStatus] = useState('');
   const [validationStatus, setValidationStatus] = useState({});
   const [lastPaymentTimestamp, setLastPaymentTimestamp] = useState('');
+  const [showCopied, setShowCopied] = useState(false);
   const router = useRouter();
 
   // Check authentication
@@ -24,23 +26,83 @@ export default function Dashboard() {
     }
   }, [publicKey, router]);
 
-  // Show loading state while checking authentication
-  if (typeof window !== 'undefined' && !publicKey) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  // Add polling for payments
+  useEffect(() => {
+    let interval;
+    if (publicKey) {
+      // Initial balance check
+      refreshBalance();
+      
+      // Poll for updates every 5 seconds
+      interval = setInterval(async () => {
+        try {
+          const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+          const payments = await server
+            .payments()
+            .forAccount(publicKey)
+            .limit(1)
+            .order('desc')
+            .call();
+
+          if (payments.records.length > 0) {
+            const latestPayment = payments.records[0];
+            
+            // Check if this is a new payment by comparing timestamps
+            if (latestPayment.created_at !== lastPaymentTimestamp) {
+              // Update last payment timestamp
+              setLastPaymentTimestamp(latestPayment.created_at);
+              
+              if (latestPayment.type === 'payment' && latestPayment.to === publicKey) {
+                // Create payment notification object
+                const paymentNotification = {
+                  type: 'payment',
+                  amount: latestPayment.amount,
+                  from: latestPayment.from,
+                  to: latestPayment.to,
+                  timestamp: latestPayment.created_at,
+                  transactionId: latestPayment.transaction_hash
+                };
+                
+                // Update last received payment
+                setLastReceivedPayment(paymentNotification);
+                refreshBalance();
+
+                // Clear notification after 5 seconds
+                setTimeout(() => {
+                  setLastReceivedPayment(null);
+                }, 5000);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking for payments:', error);
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [publicKey, lastPaymentTimestamp]);
 
   const handleLogout = async () => {
     try {
       await logout();
-      // Redirect will be handled by the useEffect above
     } catch (error) {
       console.error('Logout error:', error);
-      // Force redirect even if there's an error
       router.push('/');
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   };
 
@@ -127,42 +189,78 @@ export default function Dashboard() {
     }, 1000);
   };
 
+  // Loading state
+  if (typeof window !== 'undefined' && !publicKey) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-pulse text-white text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <div className="min-h-screen bg-gray-100 py-6 flex flex-col sm:py-12">
-        <div className="relative py-3 sm:max-w-4xl sm:mx-auto">
-          <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-            <div className="max-w-md mx-auto">
-              <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-bold">Stellar Payments</h1>
-                <button
-                  onClick={handleLogout}
-                  className="text-sm text-indigo-600 hover:text-indigo-800"
-                >
-                  Logout
-                </button>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg mb-8">
-                <p className="text-sm text-gray-600">Your Public Key:</p>
-                <p className="text-xs text-gray-800 break-all">{publicKey}</p>
-                <div className="mt-2 flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-gray-600">Balance:</p>
-                    <p className="text-xl font-bold">{balance} XLM</p>
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <header className="border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold">Stellar Pay</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleBalanceRefresh}
+                className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                title="Refresh Balance"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Account Info Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-900 rounded-xl p-6 shadow-lg">
+              <h2 className="text-lg font-semibold mb-4">Account Details</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-400">Public Key</label>
+                  <div className="mt-1 flex items-center justify-between bg-gray-800 rounded-lg p-3">
+                    <code className="text-xs break-all">{publicKey}</code>
+                    <button
+                      onClick={() => copyToClipboard(publicKey)}
+                      className="ml-2 p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Copy to clipboard"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={handleBalanceRefresh}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
-                  >
-                    ↻ Refresh
-                  </button>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400">Balance</label>
+                  <div className="mt-1 text-2xl font-bold">{balance} XLM</div>
                 </div>
               </div>
+            </div>
 
+            {/* Payment Form */}
+            <div className="bg-gray-900 rounded-xl p-6 shadow-lg mt-6">
+              <h2 className="text-lg font-semibold mb-4">Send Payment</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-400">
                     Destination Address
                     <input
                       type="text"
@@ -173,33 +271,33 @@ export default function Dashboard() {
                           validateInput(e.target.value, 'destination');
                         }
                       }}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
                       required
                     />
                   </label>
                   {validationStatus.destination && (
-                    <p className={`mt-1 text-sm ${validationStatus.destination.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
+                    <p className={`mt-1 text-sm ${validationStatus.destination.includes('Invalid') ? 'text-red-400' : 'text-green-400'}`}>
                       {validationStatus.destination}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-400">
                     Amount (XLM)
                     <input
                       type="number"
                       step="0.0000001"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
                       required
                     />
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-400">
                     Secret Key
                     <input
                       type="password"
@@ -210,12 +308,12 @@ export default function Dashboard() {
                           validateInput(e.target.value, 'secret');
                         }
                       }}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
                       required
                     />
                   </label>
                   {validationStatus.secret && (
-                    <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
+                    <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-400' : 'text-green-400'}`}>
                       {validationStatus.secret}
                     </p>
                   )}
@@ -223,9 +321,10 @@ export default function Dashboard() {
 
                 <button
                   type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="w-full flex justify-center items-center space-x-2 py-2 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                 >
-                  Send Payment
+                  <Send className="w-4 h-4" />
+                  <span>Send Payment</span>
                 </button>
               </form>
 
@@ -234,10 +333,19 @@ export default function Dashboard() {
           </div>
 
           {/* Transaction History */}
-          <TransactionHistory publicKey={publicKey} />
+          <div className="lg:col-span-2">
+            <TransactionHistory publicKey={publicKey} />
+          </div>
         </div>
-      </div>
+      </main>
+
+      {/* Notifications */}
       {lastReceivedPayment && <PaymentNotification payment={lastReceivedPayment} />}
-    </>
+      {showCopied && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          Copied to clipboard
+        </div>
+      )}
+    </div>
   );
 }
