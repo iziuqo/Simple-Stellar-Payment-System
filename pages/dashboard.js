@@ -6,7 +6,18 @@ import StellarSdk from 'stellar-sdk';
 import TransactionStatus from '../components/TransactionStatus';
 import TransactionHistory from '../components/TransactionHistory';
 import NotificationStack from '../components/NotificationStack';
-import { Copy, LogOut, RefreshCw, Send } from 'lucide-react';
+import { 
+  Search, 
+  Bell, 
+  QrCode, 
+  Send, 
+  Plus, 
+  Home, 
+  PieChart, 
+  CreditCard, 
+  Settings, 
+  X 
+} from 'lucide-react';
 
 export default function Dashboard() {
   const { publicKey, balance, logout, refreshBalance } = useAuth();
@@ -16,7 +27,7 @@ export default function Dashboard() {
   const [status, setStatus] = useState('');
   const [validationStatus, setValidationStatus] = useState({});
   const [lastPaymentTimestamp, setLastPaymentTimestamp] = useState('');
-  const [showCopied, setShowCopied] = useState(false);
+  const [showSendForm, setShowSendForm] = useState(false);
   const router = useRouter();
 
   // Check authentication
@@ -85,16 +96,6 @@ export default function Dashboard() {
     }
   };
 
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
   const validateInput = (input, type) => {
     try {
       if (type === 'destination') {
@@ -102,7 +103,6 @@ export default function Dashboard() {
         setValidationStatus(prev => ({...prev, destination: 'Valid destination address'}));
       } else if (type === 'secret') {
         const keypair = StellarSdk.Keypair.fromSecret(input);
-        // Verify the secret key matches the logged-in public key
         if (keypair.publicKey() !== publicKey) {
           setValidationStatus(prev => ({...prev, secret: 'Secret key does not match your account'}));
           return false;
@@ -121,16 +121,10 @@ export default function Dashboard() {
     setStatus('Processing payment...');
 
     try {
-      // Create Stellar server instance
       const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-      
-      // Create keypair from secret
       const sourceKeypair = StellarSdk.Keypair.fromSecret(secret);
-      
-      // Load the source account
       const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
       
-      // Build transaction
       const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
         fee: await server.fetchBaseFee(),
         networkPassphrase: StellarSdk.Networks.TESTNET,
@@ -145,7 +139,6 @@ export default function Dashboard() {
         .setTimeout(30)
         .build();
 
-      // Sign and submit transaction
       transaction.sign(sourceKeypair);
       const result = await server.submitTransaction(transaction);
 
@@ -153,9 +146,9 @@ export default function Dashboard() {
       setSecret('');
       setAmount('');
       setDestinationAddress('');
+      setShowSendForm(false);
       refreshBalance();
       
-      // Set up a few more refreshes to catch any delay in the blockchain
       const refreshTimes = [1000, 3000, 5000];
       refreshTimes.forEach(time => {
         setTimeout(() => refreshBalance(), time);
@@ -165,175 +158,236 @@ export default function Dashboard() {
     }
   };
 
-  const handleBalanceRefresh = () => {
-    setStatus('Refreshing balance...');
-    refreshBalance();
-    setTimeout(() => {
-      setStatus('Balance updated');
-      setTimeout(() => {
-        if (status === 'Balance updated') {
-          setStatus('');
-        }
-      }, 2000);
-    }, 1000);
-  };
-
   // Loading state
   if (typeof window !== 'undefined' && !publicKey) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-pulse text-white text-lg">Loading...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
+
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Stellar Pay</h1>
+      <header className="bg-white py-4 px-4 sm:px-6">
+        <div className="max-w-lg mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+              <span className="text-primary-600 font-medium">
+                {publicKey.slice(0, 2)}
+              </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBalanceRefresh}
-                className="p-2 rounded-full hover:bg-gray-800 transition-colors"
-                title="Refresh Balance"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-full hover:bg-gray-800 transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button className="p-2 hover:bg-gray-100 rounded-full">
+              <Search className="w-6 h-6 text-gray-600" />
+            </button>
+            <button className="p-2 hover:bg-gray-100 rounded-full relative">
+              <Bell className="w-6 h-6 text-gray-600" />
+              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+                1
+              </span>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Account Info Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-900 rounded-xl p-6 shadow-lg">
-              <h2 className="text-lg font-semibold mb-4">Account Details</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-400">Public Key</label>
-                  <div className="mt-1 flex items-center justify-between bg-gray-800 rounded-lg p-3">
-                    <code className="text-xs break-all">{publicKey}</code>
-                    <button
-                      onClick={() => copyToClipboard(publicKey)}
-                      className="ml-2 p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-400">Balance</label>
-                  <div className="mt-1 text-2xl font-bold">{balance} XLM</div>
-                </div>
-              </div>
+      <main className="max-w-lg mx-auto px-4 py-6">
+        {/* Balance Card */}
+        <div className="bg-primary-500 rounded-2xl p-6 text-white mb-8">
+          <h2 className="text-sm opacity-80 mb-1">Your Balance</h2>
+          <div className="text-3xl font-bold mb-4">
+            ${parseFloat(balance).toFixed(2)}
+          </div>
+          <div className="text-sm opacity-80 mb-1">Account ID</div>
+          <div className="flex justify-between items-center">
+            <div className="font-mono">
+              {publicKey.slice(0, 4)}...{publicKey.slice(-4)}
+            </div>
+            <div className="opacity-80">
+              {new Date().toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          <button className="flex flex-col items-center" onClick={() => setShowSendForm(true)}>
+            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-2">
+              <Send className="w-6 h-6 text-primary-600" />
+            </div>
+            <span className="text-xs text-gray-600">Send</span>
+          </button>
+          <button className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-2">
+              <Plus className="w-6 h-6 text-primary-600" />
+            </div>
+            <span className="text-xs text-gray-600">Add</span>
+          </button>
+          <button className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-2">
+              <QrCode className="w-6 h-6 text-primary-600" />
+            </div>
+            <span className="text-xs text-gray-600">QR Code</span>
+          </button>
+          <button className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-2">
+              <Settings className="w-6 h-6 text-primary-600" />
+            </div>
+            <span className="text-xs text-gray-600">More</span>
+          </button>
+        </div>
+
+        {/* Overview Section */}
+        <div className="bg-white rounded-2xl p-6 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold">Overview</h2>
+            <select className="text-primary-600 text-sm bg-transparent border-none">
+              <option>Monthly</option>
+              <option>Weekly</option>
+              <option>Daily</option>
+            </select>
+          </div>
+
+          <TransactionHistory publicKey={publicKey} />
+        </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3">
+        <div className="max-w-lg mx-auto flex justify-around">
+          <button className="flex flex-col items-center text-primary-600">
+            <Home className="w-6 h-6" />
+            <span className="text-xs mt-1">Home</span>
+          </button>
+          <button className="flex flex-col items-center text-gray-400">
+            <PieChart className="w-6 h-6" />
+            <span className="text-xs mt-1">Analytics</span>
+          </button>
+          <button className="flex flex-col items-center text-gray-400">
+            <CreditCard className="w-6 h-6" />
+            <span className="text-xs mt-1">Card</span>
+          </button>
+          <button className="flex flex-col items-center text-gray-400" onClick={handleLogout}>
+            <Settings className="w-6 h-6" />
+            <span className="text-xs mt-1">Settings</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Send Money Modal */}
+      {showSendForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-slide-up">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Transfer</h2>
+              <button 
+                onClick={() => setShowSendForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
 
-            {/* Payment Form */}
-            <div className="bg-gray-900 rounded-xl p-6 shadow-lg mt-6">
-              <h2 className="text-lg font-semibold mb-4">Send Payment</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400">
-                    Destination Address
-                    <input
-                      type="text"
-                      value={destinationAddress}
-                      onChange={(e) => {
-                        setDestinationAddress(e.target.value);
-                        if (e.target.value.length >= 56) {
-                          validateInput(e.target.value, 'destination');
-                        }
-                      }}
-                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </label>
-                  {validationStatus.destination && (
-                    <p className={`mt-1 text-sm ${validationStatus.destination.includes('Invalid') ? 'text-red-400' : 'text-green-400'}`}>
-                      {validationStatus.destination}
-                    </p>
-                  )}
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Transfer To
+                  <input
+                    type="text"
+                    value={destinationAddress}
+                    onChange={(e) => {
+                      setDestinationAddress(e.target.value);
+                      if (e.target.value.length >= 56) {
+                        validateInput(e.target.value, 'destination');
+                      }
+                    }}
+                    className="mt-1 form-input"
+                    required
+                  />
+                </label>
+                {validationStatus.destination && (
+                  <p className={`mt-1 text-sm ${
+                    validationStatus.destination.includes('Invalid') 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {validationStatus.destination}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-400">
-                    Amount (XLM)
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount (XLM)
+                  <div className="mt-1 relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      $
+                    </span>
                     <input
                       type="number"
                       step="0.0000001"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
+                      className="pl-8 form-input"
                       required
                     />
-                  </label>
-                </div>
+                  </div>
+                </label>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-400">
-                    Secret Key
-                    <input
-                      type="password"
-                      value={secret}
-                      onChange={(e) => {
-                        setSecret(e.target.value);
-                        if (e.target.value.length >= 56) {
-                          validateInput(e.target.value, 'secret');
-                        }
-                      }}
-                      className="mt-1 block w-full rounded-lg border-gray-600 bg-gray-800 text-white focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </label>
-                  {validationStatus.secret && (
-                    <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-400' : 'text-green-400'}`}>
-                      {validationStatus.secret}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Secret Key
+                  <input
+                    type="password"
+                    value={secret}
+                    onChange={(e) => {
+                      setSecret(e.target.value);
+                      if (e.target.value.length >= 56) {
+                        validateInput(e.target.value, 'secret');
+                      }
+                    }}
+                    className="mt-1 form-input"
+                    required
+                  />
+                </label>
+                {validationStatus.secret && (
+                  <p className={`mt-1 text-sm ${
+                    validationStatus.secret.includes('Invalid') 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {validationStatus.secret}
+                  </p>
+                )}
+              </div>
 
+              {status && <TransactionStatus status={status} />}
+
+              <div className="mt-6 flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSendForm(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="w-full flex justify-center items-center space-x-2 py-2 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                  className="flex-1 btn-primary"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Send Payment</span>
+                  Transfer Now
                 </button>
-              </form>
-
-              <TransactionStatus status={status} />
-            </div>
+              </div>
+            </form>
           </div>
-
-          {/* Transaction History */}
-          <div className="lg:col-span-2">
-            <TransactionHistory publicKey={publicKey} />
-          </div>
-        </div>
-      </main>
-
-      {/* Notifications */}
-      <NotificationStack />
-      {showCopied && (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
-          Copied to clipboard
         </div>
       )}
+
+      <NotificationStack />
     </div>
   );
 }
