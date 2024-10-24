@@ -1,64 +1,53 @@
-// File: context/AuthContext.js
-import { createContext, useContext, useState, useEffect } from 'react';
+// File: context/AuthContext.js (add new functions)
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import StellarSdk from 'stellar-sdk';
 
-const AuthContext = createContext();
-
 export function AuthProvider({ children }) {
-  const [publicKey, setPublicKey] = useState(null);
-  const [balance, setBalance] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // ... existing code ...
+
+  const [lastReceivedPayment, setLastReceivedPayment] = useState(null);
+  const eventSourceRef = useRef(null);
+
+  const startPaymentListener = () => {
+    if (publicKey && typeof window !== 'undefined') {
+      // Close existing connection if any
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      // Start new connection
+      const eventSource = new EventSource(`/api/payment-listener?publicKey=${publicKey}`);
+      
+      eventSource.onmessage = (event) => {
+        const payment = JSON.parse(event.data);
+        if (payment.to === publicKey) {
+          setLastReceivedPayment(payment);
+          refreshBalance();
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        eventSource.close();
+      };
+
+      eventSourceRef.current = eventSource;
+    }
+  };
 
   useEffect(() => {
-    // Check localStorage on mount
-    const storedPublicKey = localStorage.getItem('stellarPublicKey');
-    if (storedPublicKey) {
-      setPublicKey(storedPublicKey);
-      fetchBalance(storedPublicKey);
-    }
-    setLoading(false);
-  }, []);
-
-  const fetchBalance = async (key) => {
-    try {
-      const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-      const account = await server.loadAccount(key);
-      const xlmBalance = account.balances.find(b => b.asset_type === 'native');
-      setBalance(xlmBalance ? xlmBalance.balance : '0');
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      setBalance('0');
-    }
-  };
-
-  const login = async (publicKey) => {
-    try {
-      // Validate the public key format
-      StellarSdk.Keypair.fromPublicKey(publicKey);
-      
-      // Store in localStorage and state
-      localStorage.setItem('stellarPublicKey', publicKey);
-      setPublicKey(publicKey);
-      await fetchBalance(publicKey);
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('stellarPublicKey');
-    setPublicKey(null);
-    setBalance(null);
-  };
-
-  const refreshBalance = () => {
     if (publicKey) {
-      fetchBalance(publicKey);
+      startPaymentListener();
     }
-  };
 
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, [publicKey]);
+
+  // Add lastReceivedPayment to the context value
   return (
     <AuthContext.Provider value={{
       publicKey,
@@ -66,13 +55,10 @@ export function AuthProvider({ children }) {
       loading,
       login,
       logout,
-      refreshBalance
+      refreshBalance,
+      lastReceivedPayment,
     }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
