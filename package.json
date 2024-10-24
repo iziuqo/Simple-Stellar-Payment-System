@@ -1,6 +1,6 @@
 {
   "name": "stellar-payment-system",
-  "version": "6.0.0",
+  "version": "8.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,6 +16,7 @@
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.23",
     "tailwindcss": "^3.3.2",
-    "lucide-react": "^0.263.1"
+    "lucide-react": "^0.263.1",
+    "clsx": "^2.0.0"
   }
 }
