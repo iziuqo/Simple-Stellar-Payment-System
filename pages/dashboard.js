@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
 import StellarSdk from 'stellar-sdk';
 import TransactionStatus from '../components/TransactionStatus';
-import PaymentNotification from '../components/PaymentNotification';
 import TransactionHistory from '../components/TransactionHistory';
+import NotificationStack from '../components/NotificationStack';
 import { Copy, LogOut, RefreshCw, Send } from 'lucide-react';
 
 export default function Dashboard() {
-  const { publicKey, balance, logout, refreshBalance, lastReceivedPayment } = useAuth();
+  const { publicKey, balance, logout, refreshBalance } = useAuth();
   const [destinationAddress, setDestinationAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [secret, setSecret] = useState('');
@@ -30,10 +30,8 @@ export default function Dashboard() {
   useEffect(() => {
     let interval;
     if (publicKey) {
-      // Initial balance check
       refreshBalance();
       
-      // Poll for updates every 5 seconds
       interval = setInterval(async () => {
         try {
           const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
@@ -47,14 +45,11 @@ export default function Dashboard() {
           if (payments.records.length > 0) {
             const latestPayment = payments.records[0];
             
-            // Check if this is a new payment by comparing timestamps
             if (latestPayment.created_at !== lastPaymentTimestamp) {
-              // Update last payment timestamp
               setLastPaymentTimestamp(latestPayment.created_at);
               
               if (latestPayment.type === 'payment' && latestPayment.to === publicKey) {
-                // Create payment notification object
-                const paymentNotification = {
+                const notification = {
                   type: 'payment',
                   amount: latestPayment.amount,
                   from: latestPayment.from,
@@ -63,21 +58,15 @@ export default function Dashboard() {
                   transactionId: latestPayment.transaction_hash
                 };
                 
-                // Update last received payment
-                setLastReceivedPayment(paymentNotification);
+                window.addNotification(notification);
                 refreshBalance();
-
-                // Clear notification after 5 seconds
-                setTimeout(() => {
-                  setLastReceivedPayment(null);
-                }, 5000);
               }
             }
           }
         } catch (error) {
           console.error('Error checking for payments:', error);
         }
-      }, 5000); // Poll every 5 seconds
+      }, 5000);
     }
 
     return () => {
@@ -197,7 +186,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
@@ -340,7 +328,7 @@ export default function Dashboard() {
       </main>
 
       {/* Notifications */}
-      {lastReceivedPayment && <PaymentNotification payment={lastReceivedPayment} />}
+      <NotificationStack />
       {showCopied && (
         <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
           Copied to clipboard
