@@ -16,8 +16,7 @@ import {
   PieChart, 
   CreditCard, 
   Settings, 
-  X,
-  ChevronLeft
+  X 
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -97,30 +96,22 @@ export default function Dashboard() {
     }
   };
 
-  const formatBalance = (bal) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'decimal',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(bal);
-  };
-
   const validateInput = (input, type) => {
     try {
       if (type === 'destination') {
         StellarSdk.Keypair.fromPublicKey(input);
-        setValidationStatus(prev => ({...prev, destination: 'Valid address'}));
+        setValidationStatus(prev => ({...prev, destination: 'Valid destination address'}));
       } else if (type === 'secret') {
         const keypair = StellarSdk.Keypair.fromSecret(input);
         if (keypair.publicKey() !== publicKey) {
           setValidationStatus(prev => ({...prev, secret: 'Secret key does not match your account'}));
           return false;
         }
-        setValidationStatus(prev => ({...prev, secret: 'Valid key'}));
+        setValidationStatus(prev => ({...prev, secret: 'Valid secret key'}));
       }
       return true;
     } catch (error) {
-      setValidationStatus(prev => ({...prev, [type]: `Invalid ${type}`}));
+      setValidationStatus(prev => ({...prev, [type]: `Invalid ${type}: ${error.message}`}));
       return false;
     }
   };
@@ -175,11 +166,10 @@ export default function Dashboard() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white py-4 px-4 sm:px-6">
+      <header className="bg-white py-4 px-4 sm:px-6 fixed top-0 left-0 right-0 z-10">
         <div className="max-w-lg mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
@@ -203,12 +193,12 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-lg mx-auto px-4 py-6 mt-20 mb-24">
         {/* Balance Card */}
         <div className="bg-primary-500 rounded-2xl p-6 text-white mb-8">
           <h2 className="text-sm opacity-80 mb-1">Your Balance</h2>
           <div className="text-3xl font-bold mb-4">
-            ${formatBalance(balance)}
+            ${parseFloat(balance).toFixed(2)}
           </div>
           <div className="text-sm opacity-80 mb-1">Account ID</div>
           <div className="flex justify-between items-center">
@@ -224,7 +214,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <button 
-            className="flex flex-col items-center"
+            className="flex flex-col items-center" 
             onClick={() => setShowSendForm(true)}
           >
             <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-2">
@@ -253,7 +243,7 @@ export default function Dashboard() {
         </div>
 
         {/* Overview Section */}
-        <div className="bg-white rounded-2xl p-6 mb-20">
+        <div className="bg-white rounded-2xl p-6 mb-8 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">Overview</h2>
             <select className="text-primary-600 text-sm bg-transparent border-none">
@@ -268,7 +258,7 @@ export default function Dashboard() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-10">
         <div className="max-w-lg mx-auto flex justify-around">
           <button className="flex flex-col items-center text-primary-600">
             <Home className="w-6 h-6" />
@@ -283,7 +273,7 @@ export default function Dashboard() {
             <span className="text-xs mt-1">Card</span>
           </button>
           <button 
-            className="flex flex-col items-center text-gray-400"
+            className="flex flex-col items-center text-gray-400" 
             onClick={handleLogout}
           >
             <Settings className="w-6 h-6" />
@@ -294,85 +284,115 @@ export default function Dashboard() {
 
       {/* Send Money Modal */}
       {showSendForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-white w-full sm:rounded-2xl sm:max-w-md">
-                {/* Modal Header */}
-                <div className="border-b border-gray-200 px-4 py-4">
-                  <div className="flex items-center">
-                    <button 
-                      onClick={() => setShowSendForm(false)}
-                      className="p-2 -ml-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-gray-600" />
-                    </button>
-                    <h2 className="text-xl font-semibold ml-2">Transfer</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-slide-up">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Transfer</h2>
+              <button 
+                onClick={() => setShowSendForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Transfer To
+                  <input
+                    type="text"
+                    value={destinationAddress}
+                    onChange={(e) => {
+                      setDestinationAddress(e.target.value);
+                      if (e.target.value.length >= 56) {
+                        validateInput(e.target.value, 'destination');
+                      }
+                    }}
+                    className="mt-1 form-input"
+                    required
+                  />
+                </label>
+                {validationStatus.destination && (
+                  <p className={`mt-1 text-sm ${
+                    validationStatus.destination.includes('Invalid') 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {validationStatus.destination}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount (XLM)
+                  <div className="mt-1 relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.0000001"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="pl-8 form-input"
+                      required
+                    />
                   </div>
-                </div>
+                </label>
+              </div>
 
-                {/* Modal Content */}
-                <div className="p-6">
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Transfer To
-                        <input
-                          type="text"
-                          value={destinationAddress}
-                          onChange={(e) => {
-                            setDestinationAddress(e.target.value);
-                            if (e.target.value.length >= 56) {
-                              validateInput(e.target.value, 'destination');
-                            }
-                          }}
-                          placeholder="Enter Stellar address"
-                          className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                          required
-                        />
-                      </label>
-                      {validationStatus.destination && (
-                        <p className={`mt-1 text-sm ${
-                          validationStatus.destination.includes('Invalid') 
-                            ? 'text-red-600' 
-                            : 'text-green-600'
-                        }`}>
-                          {validationStatus.destination}
-                        </p>
-                      )}
-                    </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Secret Key
+                  <input
+                    type="password"
+                    value={secret}
+                    onChange={(e) => {
+                      setSecret(e.target.value);
+                      if (e.target.value.length >= 56) {
+                        validateInput(e.target.value, 'secret');
+                      }
+                    }}
+                    className="mt-1 form-input"
+                    required
+                  />
+                </label>
+                {validationStatus.secret && (
+                  <p className={`mt-1 text-sm ${
+                    validationStatus.secret.includes('Invalid') 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {validationStatus.secret}
+                  </p>
+                )}
+              </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Amount (XLM)
-                        <div className="mt-1 relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            step="0.0000001"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="pl-8 block w-full rounded-xl border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                            required
-                          />
-                        </div>
-                      </label>
-                    </div>
+              {status && <TransactionStatus status={status} />}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Secret Key
-                        <input
-                          type="password"
-                          value={secret}
-                          onChange={(e) => {
-                            setSecret(e.target.value);
-                            if (e.target.value.length >= 56) {
-                              validateInput(e.target.value, 'secret');
-                            }
-                          }}
-                          placeholder="Enter your secret key"
-                          className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-primary-500 focus
+              <div className="mt-6 flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSendForm(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 btn-primary"
+                >
+                  Transfer Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <NotificationStack />
+    </div>
+  );
+}
