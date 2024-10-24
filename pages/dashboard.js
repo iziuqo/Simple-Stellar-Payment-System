@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
 import StellarSdk from 'stellar-sdk';
+import TransactionStatus from '../components/TransactionStatus';
 
 export default function Dashboard() {
   const { publicKey, balance, logout, refreshBalance } = useAuth();
@@ -192,11 +193,7 @@ export default function Dashboard() {
               </button>
             </form>
 
-            {status && (
-              <div className={`mt-4 p-4 rounded-md ${status.includes('Error') ? 'bg-red-50' : 'bg-gray-50'}`}>
-                <p className="text-sm">{status}</p>
-              </div>
-            )}
+            <TransactionStatus status={status} />
           </div>
         </div>
       </div>
