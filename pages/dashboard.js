@@ -24,77 +24,6 @@ export default function Dashboard() {
     }
   }, [publicKey, router]);
 
-  // Add polling for payments
-  useEffect(() => {
-    let interval;
-    if (publicKey) {
-      // Initial balance check
-      refreshBalance();
-      
-      // Poll for updates every 5 seconds
-      interval = setInterval(async () => {
-        try {
-          const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-          const payments = await server
-            .payments()
-            .forAccount(publicKey)
-            .limit(1)
-            .order('desc')
-            .call();
-
-          if (payments.records.length > 0) {
-            const latestPayment = payments.records[0];
-            
-            // Check if this is a new payment by comparing timestamps
-            if (latestPayment.created_at !== lastPaymentTimestamp) {
-              // Update last payment timestamp
-              setLastPaymentTimestamp(latestPayment.created_at);
-              
-              if (latestPayment.type === 'payment' && latestPayment.to === publicKey) {
-                // Create payment notification object
-                const paymentNotification = {
-                  type: 'payment',
-                  amount: latestPayment.amount,
-                  from: latestPayment.from,
-                  to: latestPayment.to,
-                  timestamp: latestPayment.created_at,
-                  transactionId: latestPayment.transaction_hash
-                };
-                
-                // Update last received payment
-                setLastReceivedPayment(paymentNotification);
-                refreshBalance();
-
-                // Clear notification after 5 seconds
-                setTimeout(() => {
-                  setLastReceivedPayment(null);
-                }, 5000);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error checking for payments:', error);
-        }
-      }, 5000); // Poll every 5 seconds
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [publicKey, lastPaymentTimestamp]);
-
-  // Cleanup validation messages after 5 seconds
-  useEffect(() => {
-    if (validationStatus.destination || validationStatus.secret) {
-      const timer = setTimeout(() => {
-        setValidationStatus({});
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [validationStatus]);
-
   // Show loading state while checking authentication
   if (typeof window !== 'undefined' && !publicKey) {
     return (
@@ -281,4 +210,34 @@ export default function Dashboard() {
                           validateInput(e.target.value, 'secret');
                         }
                       }}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      required
+                    />
+                  </label>
+                  {validationStatus.secret && (
+                    <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
+                      {validationStatus.secret}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Send Payment
+                </button>
+              </form>
+
+              <TransactionStatus status={status} />
+            </div>
+          </div>
+
+          {/* Transaction History */}
+          <TransactionHistory publicKey={publicKey} />
+        </div>
+      </div>
+      {lastReceivedPayment && <PaymentNotification payment={lastReceivedPayment} />}
+    </>
+  );
+}
