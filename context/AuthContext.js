@@ -108,16 +108,30 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    // Close payment listener
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    try {
+      // Close payment listener
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      
+      // Clear all states
+      localStorage.removeItem('stellarPublicKey');
+      setPublicKey(null);
+      setBalance(null);
+      setLastReceivedPayment(null);
+      
+      // Force reload to clear any remaining state
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force reload even if there's an error
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     }
-    
-    // Clear storage and state
-    localStorage.removeItem('stellarPublicKey');
-    setPublicKey(null);
-    setBalance(null);
-    setLastReceivedPayment(null);
   };
 
   const refreshBalance = async () => {
