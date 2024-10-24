@@ -9,13 +9,28 @@ export default async function handler(req, res) {
   const { destinationAddress, amount, secret } = req.body;
 
   try {
+    // Verify the secret key format
+    let sourceKeypair;
+    try {
+      sourceKeypair = StellarSdk.Keypair.fromSecret(secret);
+    } catch (e) {
+      return res.status(400).json({ error: `Invalid secret key: ${e.message}` });
+    }
+
+    // Verify the destination address
+    try {
+      StellarSdk.Keypair.fromPublicKey(destinationAddress);
+    } catch (e) {
+      return res.status(400).json({ error: `Invalid destination address: ${e.message}` });
+    }
+
     // Configure Stellar SDK for testnet
     const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-    const sourceKeypair = StellarSdk.Keypair.fromSecret(secret);
     const sourcePublicKey = sourceKeypair.publicKey();
 
     // Load the source account
     const sourceAccount = await server.loadAccount(sourcePublicKey);
+    console.log('Source account loaded:', sourcePublicKey);
 
     // Create a payment transaction
     const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
@@ -37,15 +52,19 @@ export default async function handler(req, res) {
 
     // Submit the transaction
     const result = await server.submitTransaction(transaction);
+    console.log('Transaction successful:', result.id);
 
     return res.status(200).json({
       success: true,
       transactionId: result.id,
+      sourceAccount: sourcePublicKey,
+      destinationAccount: destinationAddress
     });
   } catch (error) {
-    console.error('Payment error:', error);
+    console.error('Detailed payment error:', error);
     return res.status(400).json({
-      error: error.message || 'Failed to process payment',
+      error: `Transaction failed: ${error.message}`,
+      errorDetails: error
     });
   }
 }
