@@ -1,15 +1,63 @@
 // File: pages/index.js
 import { useState } from 'react';
+import StellarSdk from 'stellar-sdk';
 
 export default function Home() {
   const [destinationAddress, setDestinationAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [secret, setSecret] = useState('');
   const [status, setStatus] = useState('');
+  const [validationStatus, setValidationStatus] = useState({});
+
+  const validateInput = (input, type) => {
+    try {
+      if (type === 'destination') {
+        StellarSdk.Keypair.fromPublicKey(input);
+        setValidationStatus(prev => ({...prev, destination: 'Valid destination address'}));
+      } else if (type === 'secret') {
+        StellarSdk.Keypair.fromSecret(input);
+        setValidationStatus(prev => ({...prev, secret: 'Valid secret key'}));
+      }
+      return true;
+    } catch (error) {
+      setValidationStatus(prev => ({...prev, [type]: `Invalid ${type}: ${error.message}`}));
+      return false;
+    }
+  };
+
+  const handleDestinationChange = (e) => {
+    const value = e.target.value.trim();
+    setDestinationAddress(value);
+    if (value.length >= 56) {
+      validateInput(value, 'destination');
+    }
+  };
+
+  const handleSecretChange = (e) => {
+    const value = e.target.value.trim();
+    setSecret(value);
+    if (value.length >= 56) {
+      validateInput(value, 'secret');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus('Processing...');
+    setStatus('Validating inputs...');
+
+    // Clear previous validation status
+    setValidationStatus({});
+
+    // Validate both keys before submission
+    const isDestinationValid = validateInput(destinationAddress, 'destination');
+    const isSecretValid = validateInput(secret, 'secret');
+
+    if (!isDestinationValid || !isSecretValid) {
+      setStatus('Validation failed. Please check the errors above.');
+      return;
+    }
+
+    setStatus('Processing payment...');
 
     try {
       const response = await fetch('/api/send-payment', {
@@ -51,11 +99,16 @@ export default function Home() {
                       <input
                         type="text"
                         value={destinationAddress}
-                        onChange={(e) => setDestinationAddress(e.target.value)}
+                        onChange={handleDestinationChange}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                         required
                       />
                     </label>
+                    {validationStatus.destination && (
+                      <p className={`mt-1 text-sm ${validationStatus.destination.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
+                        {validationStatus.destination}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
@@ -76,11 +129,16 @@ export default function Home() {
                       <input
                         type="password"
                         value={secret}
-                        onChange={(e) => setSecret(e.target.value)}
+                        onChange={handleSecretChange}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                         required
                       />
                     </label>
+                    {validationStatus.secret && (
+                      <p className={`mt-1 text-sm ${validationStatus.secret.includes('Invalid') ? 'text-red-600' : 'text-green-600'}`}>
+                        {validationStatus.secret}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="submit"
@@ -90,7 +148,7 @@ export default function Home() {
                   </button>
                 </form>
                 {status && (
-                  <div className="mt-4 p-4 rounded-md bg-gray-50">
+                  <div className={`mt-4 p-4 rounded-md ${status.includes('Error') ? 'bg-red-50' : 'bg-gray-50'}`}>
                     <p className="text-sm">{status}</p>
                   </div>
                 )}
